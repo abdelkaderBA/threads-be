@@ -17,12 +17,12 @@ export class CommentController {
   constructor(private readonly commentService: CommentService) {}
 
   @Post()
-  create(@Body() createCommentDto: CreateCommentDto) {
+  createNewComment(@Body() createCommentDto: CreateCommentDto) {
     return this.commentService.create(createCommentDto);
   }
 
   @Get()
-  findAll(@Query() queryParams) {
+  findAllComments(@Query() queryParams) {
     if (queryParams.parentId) {
       return this.commentService.getCommentsByParentId(queryParams.parentId);
     }
