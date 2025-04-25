@@ -1,0 +1,22 @@
+name: workflow-nestjs
+on:
+  push:
+    branches: master
+
+jobs:
+
+  build:
+  
+    runs-on: ubuntu-latest
+    
+    steps:
+    
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build nestjs with Docker
+        run: docker build -t nestjs-image .
+
+      - name: Verification of images
+        run: docker images
+        
