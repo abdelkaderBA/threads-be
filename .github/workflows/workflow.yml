@@ -3,20 +3,68 @@ on:
   push:
     branches: master
 
-jobs:
+env:
+  IMAGE_NAME: gaddourba/nestjs-backend
+  BUILD_NUMBER: ${{ github.run_number }}
 
-  build:
-  
+jobs:
+  unit-test:
     runs-on: ubuntu-latest
-    
     steps:
-    
-      - name: Checkout Code
+      - name: checkout
         uses: actions/checkout@v4
 
-      - name: Build nestjs with Docker
-        run: docker build -t nestjs-image .
+      - name: install dependencies
+        run: npm i
 
-      - name: Verification of images
-        run: docker images
-        
+      - name: Unit Test
+        run: |
+          rm -rf test-report
+          mkdir test-report
+          npm run test -- --json --outputFile=test-report/test-report.json
+        continue-on-error: true
+
+      - name: upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jest-Report
+          path: test-report/test-report.json
+
+      - name: Check test results and fail if tests failed
+        id: check-tests
+        run: |
+          # Simple check using Node.js to see if the tests failed
+          node -e "
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('test-report/test-report.json'));
+          if (report.success === false || report.numFailedTests > 0) {
+            console.error('::error::Tests failed. Stopping workflow.');
+            process.exit(1);
+          }
+          "
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: unit-test
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: build docker image
+        id: build
+        run: docker build -t ${{env.IMAGE_NAME}} . || echo "::set-output name=status::failure"
+
+      - name: login to dockerhub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: tag image With version number
+        run: docker tag ${{env.IMAGE_NAME}} ${{env.IMAGE_NAME}}:${{ github.run_number }}
+
+      - name: push image with version number
+        run: docker push ${{env.IMAGE_NAME}}:${{ env.BUILD_NUMBER }}
+
+      - name: push image docker
+        run: docker push ${{env.IMAGE_NAME}}:latest
