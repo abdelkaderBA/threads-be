@@ -68,3 +68,25 @@ jobs:
 
       - name: push image docker
         run: docker push ${{env.IMAGE_NAME}}:latest
+  trivy-scan:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull Docker image
+        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.BUILD_NUMBER }}
+
+      - name: Scan Docker image with Trivy
+        id: trivy-scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: '${{ env.IMAGE_NAME }}:${{ env.BUILD_NUMBER }}'
+          format: 'table'
+          ignore-unfixed: true
+          exit-code: '1'
+          severity: 'CRITICAL'
